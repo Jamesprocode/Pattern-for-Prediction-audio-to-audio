@@ -10,6 +10,7 @@ import os
 import time
 from pathlib import Path
 import argparse
+import wandb
 
 from model import MelContinuationTransformer, count_parameters
 from dataset import create_dataloaders
@@ -44,39 +45,46 @@ class MelLoss(nn.Module):
         return mse_loss + self.spectral_weight * spectral_loss
 
 
-def train_epoch(model, train_loader, criterion, optimizer, device, epoch):
+def train_epoch(model, train_loader, criterion, optimizer, device, epoch, use_wandb=False):
     """Train for one epoch"""
     model.train()
     total_loss = 0
     start_time = time.time()
-    
+
     for batch_idx, (context, target) in enumerate(train_loader):
         # Move to device
         context = context.to(device)
         target = target.to(device)
-        
+
         # Forward pass
         predicted = model(context, predict_length=target.size(2))
         loss = criterion(predicted, target)
-        
+
         # Backward pass
         optimizer.zero_grad()
         loss.backward()
-        
+
         # Gradient clipping (helps training stability)
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        
+
         optimizer.step()
-        
+
         total_loss += loss.item()
-        
+
+        # Log to wandb every step
+        if use_wandb:
+            wandb.log({
+                'train/batch_loss': loss.item(),
+                'train/epoch': epoch,
+            })
+
         # Print progress
         if batch_idx % 10 == 0:
             elapsed = time.time() - start_time
             print(f'Epoch: {epoch} [{batch_idx}/{len(train_loader)}] '
                   f'Loss: {loss.item():.6f} '
                   f'Time: {elapsed:.1f}s')
-    
+
     avg_loss = total_loss / len(train_loader)
     return avg_loss
 
@@ -150,26 +158,54 @@ def train(
     num_workers=4,
     # Other
     resume_from=None,
-    device=None
+    device=None,
+    use_wandb=True,
+    wandb_project="mel-continuation-transformer",
+    wandb_name=None
 ):
     """
     Main training function.
-    
+
     Args:
         train_dir: Directory with training audio files
         val_dir: Directory with validation audio files
         output_dir: Directory to save checkpoints and logs
+        use_wandb: Whether to use Weights & Biases logging
+        wandb_project: W&B project name
+        wandb_name: W&B run name (optional)
         ... (other parameters documented in argparse below)
     """
     # Setup
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
+
     print(f"Using device: {device}")
-    
+
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
-    
+
+    # Initialize W&B
+    if use_wandb:
+        wandb.init(
+            project=wandb_project,
+            name=wandb_name,
+            config={
+                'n_mels': n_mels,
+                'd_model': d_model,
+                'nhead': nhead,
+                'num_encoder_layers': num_encoder_layers,
+                'num_decoder_layers': num_decoder_layers,
+                'dim_feedforward': dim_feedforward,
+                'dropout': dropout,
+                'context_frames': context_frames,
+                'predict_frames': predict_frames,
+                'sr': sr,
+                'batch_size': batch_size,
+                'num_epochs': num_epochs,
+                'learning_rate': learning_rate,
+            }
+        )
+
     # Create tensorboard writer
     writer = SummaryWriter(log_dir=os.path.join(output_dir, 'logs'))
     
@@ -185,8 +221,13 @@ def train(
         dropout=dropout
     ).to(device)
     
-    print(f"Model parameters: {count_parameters(model):,}")
-    
+    num_params = count_parameters(model)
+    print(f"Model parameters: {num_params:,}")
+
+    if use_wandb:
+        wandb.config.update({'num_parameters': num_params})
+        wandb.watch(model, log='all', log_freq=100)
+
     # Create dataloaders
     print("\nCreating dataloaders...")
     train_loader, val_loader = create_dataloaders(
@@ -226,22 +267,31 @@ def train(
         print("-" * 60)
         
         # Train
-        train_loss = train_epoch(model, train_loader, criterion, optimizer, device, epoch)
+        train_loss = train_epoch(model, train_loader, criterion, optimizer, device, epoch, use_wandb=use_wandb)
         print(f"Train Loss: {train_loss:.6f}")
-        
+
         # Validate
         if val_loader is not None:
             val_loss = validate(model, val_loader, criterion, device)
             print(f"Val Loss: {val_loss:.6f}")
-            
+
             # Log to tensorboard
             writer.add_scalar('Loss/train', train_loss, epoch)
             writer.add_scalar('Loss/val', val_loss, epoch)
             writer.add_scalar('Learning_rate', optimizer.param_groups[0]['lr'], epoch)
-            
+
+            # Log to W&B
+            if use_wandb:
+                wandb.log({
+                    'train/loss': train_loss,
+                    'val/loss': val_loss,
+                    'learning_rate': optimizer.param_groups[0]['lr'],
+                    'epoch': epoch
+                })
+
             # Update learning rate
             scheduler.step(val_loss)
-            
+
             # Save best model
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -249,10 +299,20 @@ def train(
                     model, optimizer, epoch, val_loss,
                     os.path.join(output_dir, 'best_model.pt')
                 )
+                if use_wandb:
+                    wandb.run.summary['best_val_loss'] = best_val_loss
         else:
             # No validation set
             writer.add_scalar('Loss/train', train_loss, epoch)
             writer.add_scalar('Learning_rate', optimizer.param_groups[0]['lr'], epoch)
+
+            # Log to W&B
+            if use_wandb:
+                wandb.log({
+                    'train/loss': train_loss,
+                    'learning_rate': optimizer.param_groups[0]['lr'],
+                    'epoch': epoch
+                })
         
         # Save checkpoint every 10 epochs
         if (epoch + 1) % 10 == 0:
@@ -263,14 +323,17 @@ def train(
     
     print("\n" + "=" * 60)
     print("Training complete!")
-    
+
     # Save final model
     save_checkpoint(
         model, optimizer, num_epochs - 1, train_loss,
         os.path.join(output_dir, 'final_model.pt')
     )
-    
+
     writer.close()
+
+    if use_wandb:
+        wandb.finish()
 
 
 if __name__ == "__main__":
@@ -323,8 +386,18 @@ if __name__ == "__main__":
                        help='Path to checkpoint to resume from')
     parser.add_argument('--device', type=str, default=None,
                        help='Device to use (cuda/cpu)')
-    
+
+    # W&B arguments
+    parser.add_argument('--use_wandb', action='store_true', default=True,
+                       help='Use Weights & Biases logging')
+    parser.add_argument('--no_wandb', dest='use_wandb', action='store_false',
+                       help='Disable Weights & Biases logging')
+    parser.add_argument('--wandb_project', type=str, default='mel-continuation-transformer',
+                       help='W&B project name')
+    parser.add_argument('--wandb_name', type=str, default=None,
+                       help='W&B run name (optional)')
+
     args = parser.parse_args()
-    
+
     # Train
     train(**vars(args))
