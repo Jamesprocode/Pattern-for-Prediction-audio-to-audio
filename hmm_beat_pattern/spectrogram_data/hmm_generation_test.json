@@ -1,0 +1,13 @@
+{
+  "n_generated": 100,
+  "generated_features_shape": [
+    100,
+    20
+  ],
+  "generated_specs_shape": [
+    100,
+    800
+  ],
+  "states_visited": 6,
+  "log_likelihood": -125286.56329703164
+}

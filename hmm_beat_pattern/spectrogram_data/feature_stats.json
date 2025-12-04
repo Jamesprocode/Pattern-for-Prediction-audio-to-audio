@@ -1,0 +1,10 @@
+{
+  "train_count": 60,
+  "test_count": 15,
+  "failed": 0,
+  "total_specs": 16032,
+  "target_time_steps": 10,
+  "n_mels": 80,
+  "n_pca_components": 20,
+  "variance_explained": 0.8938072323799133
+}

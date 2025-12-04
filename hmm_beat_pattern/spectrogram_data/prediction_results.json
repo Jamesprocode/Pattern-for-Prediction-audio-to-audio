@@ -1,0 +1,92 @@
+{
+  "d99f6dd9-8f68-4962-97ff-036a72051e5c": {
+    "cardinality_score": 0.9285714285714286,
+    "pitch_accuracy": 0.8159722222222223,
+    "n_predicted_notes": 24,
+    "n_ground_truth_notes": 14
+  },
+  "dd1e320f-13d3-4b9a-a543-4e8a600263d3": {
+    "cardinality_score": 1.0,
+    "pitch_accuracy": 0.7663398692810458,
+    "n_predicted_notes": 51,
+    "n_ground_truth_notes": 19
+  },
+  "e13503ff-dfc2-482e-ace1-bac6c00e4932": {
+    "cardinality_score": 0.6818181818181818,
+    "pitch_accuracy": 0.5533333333333333,
+    "n_predicted_notes": 50,
+    "n_ground_truth_notes": 22
+  },
+  "e600b304-5134-4d5f-96f8-3b944758aa33": {
+    "cardinality_score": 1.0,
+    "pitch_accuracy": 0.66875,
+    "n_predicted_notes": 40,
+    "n_ground_truth_notes": 15
+  },
+  "e727167a-6101-4551-bc5e-83e34cf86c58": {
+    "cardinality_score": 0.26666666666666666,
+    "pitch_accuracy": 0.08695652173913043,
+    "n_predicted_notes": 46,
+    "n_ground_truth_notes": 15
+  },
+  "e94ab7c3-360d-427d-939f-ea71620f980b": {
+    "cardinality_score": 0.4166666666666667,
+    "pitch_accuracy": 0.39285714285714285,
+    "n_predicted_notes": 14,
+    "n_ground_truth_notes": 12
+  },
+  "eeb7f926-ac07-4459-8e8d-58f7e3071ec3": {
+    "cardinality_score": 0.05555555555555555,
+    "pitch_accuracy": 0.15364583333333331,
+    "n_predicted_notes": 32,
+    "n_ground_truth_notes": 18
+  },
+  "ef0368ce-6215-4257-a57b-4791930f4cec": {
+    "cardinality_score": 0.0,
+    "pitch_accuracy": 0.13492063492063494,
+    "n_predicted_notes": 21,
+    "n_ground_truth_notes": 11
+  },
+  "ef1c3b2b-e616-46df-ac92-addc2e5a73bc": {
+    "cardinality_score": 1.0,
+    "pitch_accuracy": 0.8247863247863247,
+    "n_predicted_notes": 39,
+    "n_ground_truth_notes": 18
+  },
+  "f5fe1963-4883-4c3e-8933-47622a7f9cbe": {
+    "cardinality_score": 0.0,
+    "pitch_accuracy": 0.12296747967479671,
+    "n_predicted_notes": 82,
+    "n_ground_truth_notes": 13
+  },
+  "f6029d06-431c-4036-a390-d24d29b6b1d6": {
+    "cardinality_score": 0.16129032258064516,
+    "pitch_accuracy": 0.35294117647058826,
+    "n_predicted_notes": 17,
+    "n_ground_truth_notes": 31
+  },
+  "f96a15cb-4c5b-401b-9ef5-7e293c467c61": {
+    "cardinality_score": 0.0,
+    "pitch_accuracy": 0.0,
+    "n_predicted_notes": 7,
+    "n_ground_truth_notes": 16
+  },
+  "fc2fda7c-9f55-4bf3-8fa8-f337e35aa20f": {
+    "cardinality_score": 0.0,
+    "pitch_accuracy": 0.3958333333333333,
+    "n_predicted_notes": 36,
+    "n_ground_truth_notes": 10
+  },
+  "fd12d327-304f-43a6-b290-c77ab07d5e96": {
+    "cardinality_score": 0.75,
+    "pitch_accuracy": 0.5934959349593497,
+    "n_predicted_notes": 41,
+    "n_ground_truth_notes": 12
+  },
+  "feb7a66c-c6bb-4ce8-b9fc-b8a30a5ffc5a": {
+    "cardinality_score": 0.0,
+    "pitch_accuracy": 0.0,
+    "n_predicted_notes": 13,
+    "n_ground_truth_notes": 20
+  }
+}

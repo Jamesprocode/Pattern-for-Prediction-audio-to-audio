@@ -1,0 +1,8 @@
+librosa>=0.9.0
+numpy
+matplotlib
+hmmlearn
+scikit-learn
+soundfile
+tqdm
+pretty_midi
