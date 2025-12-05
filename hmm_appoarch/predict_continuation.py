@@ -190,8 +190,8 @@ def main():
     print("HMM Continuation Prediction & Evaluation")
     print("=" * 70)
 
-    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_beat_pattern/spectrogram_data")
-    test_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_beat_pattern/normalized_dataset/test")
+    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data")
+    test_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/normalized_dataset/test")
 
     # Load data
     print("\nLoading trained model and data...")
@@ -231,7 +231,7 @@ def main():
 
         # Convert back to spectrogram space
         continuation_specs_flat = pca_model.inverse_transform(continuation_features)
-        continuation_specs = continuation_specs_flat.reshape(n_continuation, 80, 10)
+        continuation_specs = continuation_specs_flat.reshape(n_continuation, 80, 6)
 
         # Convert to MIDI
         predicted_midi = spectrograms_to_midi(continuation_specs)

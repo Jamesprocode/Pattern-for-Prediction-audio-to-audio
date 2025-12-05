@@ -18,7 +18,7 @@ def main():
     print("=" * 70)
 
     # Load PCA-reduced training features
-    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_beat_pattern/spectrogram_data")
+    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data")
 
     print("\nLoading training data...")
     train_features = np.load(data_dir / "train_features.npy")  # Shape: (12848, 20)
