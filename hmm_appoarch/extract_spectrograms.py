@@ -13,6 +13,30 @@ import pickle
 from sklearn.decomposition import PCA
 
 
+def calculate_target_time_steps(bpm=120, sr=22050, hop_length=512):
+    """
+    Calculate the target time steps for a 16th note based on BPM and audio parameters.
+
+    Args:
+        bpm: Beats per minute
+        sr: Sample rate
+        hop_length: Hop length for STFT
+
+    Returns:
+        int: Recommended target time steps (rounded up)
+    """
+    # At given BPM: 1 beat = 60/bpm seconds
+    # 1 16th note = (60/bpm) / 4 seconds
+    seconds_per_16th = (60.0 / bpm) / 4.0
+    samples_per_16th = seconds_per_16th * sr
+    frames_per_16th = samples_per_16th / hop_length
+
+    # Round up to ensure we capture the full 16th note
+    target_steps = int(np.ceil(frames_per_16th))
+
+    return target_steps
+
+
 def extract_16th_note_spectrograms(audio_path, sr=22050, n_mels=80,
                                     n_fft=2048, hop_length=512):
     """
@@ -87,7 +111,7 @@ def extract_16th_note_spectrograms(audio_path, sr=22050, n_mels=80,
     return specs
 
 
-def pad_spectrograms(specs, im=10, n_mels=80):
+def pad_spectrograms(specs, target_time_steps=10, n_mels=80):
     """
     Pad or truncate spectrograms to consistent dimensions.
 
@@ -124,24 +148,36 @@ def pad_spectrograms(specs, im=10, n_mels=80):
 
 
 def process_dataset_spectrograms(dataset_dir, output_dir,
-                                 target_time_steps=10,
+                                 target_time_steps=None,
                                  n_mels=80,
                                  n_pca_components=20,
-                                 use_pca=True):
+                                 use_pca=True,
+                                 bpm=120,
+                                 sr=22050,
+                                 hop_length=512):
     """
     Process all audio files: extract spectrograms, optionally apply PCA, save for HMM.
 
     Args:
         dataset_dir: Path to normalized_dataset directory
         output_dir: Path to save processed data
-        target_time_steps: Target time dimension for spectrograms
+        target_time_steps: Target time dimension for spectrograms. If None, calculated from BPM.
         n_mels: Number of mel bins
         n_pca_components: Number of PCA components (ignored if use_pca=False)
         use_pca: Whether to apply PCA dimensionality reduction (default True)
+        bpm: Beats per minute (used to calculate target_time_steps if not provided)
+        sr: Sample rate
+        hop_length: Hop length for STFT
 
     Returns:
-        Dictionary with processing stats
+        Dictionary with processing stats, train_features, test_features, pca_model
     """
+    # Calculate target_time_steps from BPM if not provided
+    if target_time_steps is None:
+        target_time_steps = calculate_target_time_steps(bpm=bpm, sr=sr, hop_length=hop_length)
+        print(f"\nCalculated target_time_steps from BPM: {target_time_steps}")
+        print(f"  (BPM={bpm}, 16th note ≈ {target_time_steps} frames at {sr}Hz with hop_length={hop_length})\n")
+
     dataset_dir = Path(dataset_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -179,7 +215,9 @@ def process_dataset_spectrograms(dataset_dir, output_dir,
         try:
             specs = extract_16th_note_spectrograms(
                 str(audio_file),
-                n_mels=n_mels
+                sr=sr,
+                n_mels=n_mels,
+                hop_length=hop_length
             )
 
             if specs is None or len(specs) == 0:
@@ -213,7 +251,9 @@ def process_dataset_spectrograms(dataset_dir, output_dir,
         try:
             specs = extract_16th_note_spectrograms(
                 str(audio_file),
-                n_mels=n_mels
+                sr=sr,
+                n_mels=n_mels,
+                hop_length=hop_length
             )
 
             if specs is None or len(specs) == 0:
@@ -316,7 +356,6 @@ def process_dataset_spectrograms(dataset_dir, output_dir,
     test_file = output_dir / "test_features.npy"
     train_names_file = output_dir / "train_names.pkl"
     test_names_file = output_dir / "test_names.pkl"
-    pca_file = output_dir / "pca_model.pkl"
 
     np.save(train_file, train_features)
     np.save(test_file, test_features)
@@ -327,19 +366,25 @@ def process_dataset_spectrograms(dataset_dir, output_dir,
     with open(test_names_file, 'wb') as f:
         pickle.dump(test_names, f)
 
-    with open(pca_file, 'wb') as f:
-        pickle.dump(pca, f)
-
     print(f"Data saved to: {output_dir}")
     print(f"  - {train_file.name}: {train_features.shape}")
     print(f"  - {test_file.name}: {test_features.shape}")
     print(f"  - {train_names_file.name}")
     print(f"  - {test_names_file.name}")
-    print(f"  - {pca_file.name}")
+
+    # Save PCA model only if used
+    if use_pca:
+        pca_file = output_dir / "pca_model.pkl"
+        with open(pca_file, 'wb') as f:
+            pickle.dump(pca, f)
+        print(f"  - {pca_file.name}")
 
     # Save stats
     stats_file = output_dir / "feature_stats.json"
-    stats['variance_explained'] = float(pca.explained_variance_ratio_.sum())
+    if use_pca:
+        stats['variance_explained'] = float(pca.explained_variance_ratio_.sum())
+    else:
+        stats['variance_explained'] = None
     with open(stats_file, 'w') as f:
         json.dump(stats, f, indent=2)
 
@@ -349,13 +394,37 @@ def process_dataset_spectrograms(dataset_dir, output_dir,
 
 
 if __name__ == "__main__":
-    DATASET_DIR = "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_beat_pattern/normalized_dataset"
-    OUTPUT_DIR = "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_beat_pattern/spectrogram_data"
+    DATASET_DIR = "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/normalized_dataset"
+    OUTPUT_DIR = "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data"
 
+    # Extract spectrograms with PCA (target_time_steps auto-calculated from BPM)
     process_dataset_spectrograms(
         DATASET_DIR,
         OUTPUT_DIR,
-        target_time_steps=10,
+        # target_time_steps auto-calculated as 6 frames for 120 BPM
         n_mels=80,
-        n_pca_components=20
+        n_pca_components=20,
+        use_pca=True,
+        bpm=120  # All MIDI files normalized to this BPM
     )
+
+    # Examples of other configurations:
+
+    # Option 1: Train HMM directly on raw spectrograms without PCA
+    # process_dataset_spectrograms(
+    #     DATASET_DIR,
+    #     "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data_no_pca",
+    #     n_mels=80,
+    #     use_pca=False,
+    #     bpm=120
+    # )
+
+    # Option 2: Override auto-calculated target_time_steps with manual value
+    # process_dataset_spectrograms(
+    #     DATASET_DIR,
+    #     OUTPUT_DIR,
+    #     target_time_steps=5,  # Manual override (usually not needed)
+    #     n_mels=80,
+    #     use_pca=True,
+    #     bpm=120
+    # )
