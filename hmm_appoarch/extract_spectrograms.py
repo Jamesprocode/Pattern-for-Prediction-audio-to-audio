@@ -398,26 +398,26 @@ if __name__ == "__main__":
     OUTPUT_DIR = "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data"
 
     # Extract spectrograms with PCA (target_time_steps auto-calculated from BPM)
-    process_dataset_spectrograms(
-        DATASET_DIR,
-        OUTPUT_DIR,
-        # target_time_steps auto-calculated as 6 frames for 120 BPM
-        n_mels=80,
-        n_pca_components=20,
-        use_pca=True,
-        bpm=120  # All MIDI files normalized to this BPM
-    )
+    # process_dataset_spectrograms(
+    #     DATASET_DIR,
+    #     OUTPUT_DIR,
+    #     # target_time_steps auto-calculated as 6 frames for 120 BPM
+    #     n_mels=80,
+    #     n_pca_components=20,
+    #     use_pca=True,
+    #     bpm=120  # All MIDI files normalized to this BPM
+    # )
 
     # Examples of other configurations:
 
     # Option 1: Train HMM directly on raw spectrograms without PCA
-    # process_dataset_spectrograms(
-    #     DATASET_DIR,
-    #     "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data_no_pca",
-    #     n_mels=80,
-    #     use_pca=False,
-    #     bpm=120
-    # )
+    process_dataset_spectrograms(
+        DATASET_DIR,
+        "/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data_no_pca",
+        n_mels=80,
+        use_pca=False,
+        bpm=120
+    )
 
     # Option 2: Override auto-calculated target_time_steps with manual value
     # process_dataset_spectrograms(

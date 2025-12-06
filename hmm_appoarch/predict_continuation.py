@@ -190,7 +190,7 @@ def main():
     print("HMM Continuation Prediction & Evaluation")
     print("=" * 70)
 
-    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data")
+    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data_no_pca")
     test_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/normalized_dataset/test")
 
     # Load data
@@ -198,13 +198,18 @@ def main():
     with open(data_dir / "hmm_model.pkl", 'rb') as f:
         model_data = pickle.load(f)
         hmm_model = model_data['model']
-        pca_model = model_data['pca_model']
+        pca_model = model_data.get('pca_model')
+        use_pca = model_data.get('use_pca', True)  # Default to True for backward compatibility
 
     test_features = np.load(data_dir / "test_features.npy")
     test_names = pickle.load(open(data_dir / "test_names.pkl", 'rb'))
 
     print(f"Loaded HMM model with {hmm_model.n_components} hidden states")
     print(f"Test features shape: {test_features.shape}")
+    if use_pca:
+        print(f"Using PCA-reduced features ({test_features.shape[1]}D)")
+    else:
+        print(f"Using raw spectrogram features ({test_features.shape[1]}D)")
 
     # Group test features by file
     print("\nGrouping test features by file...")
@@ -230,7 +235,12 @@ def main():
         )
 
         # Convert back to spectrogram space
-        continuation_specs_flat = pca_model.inverse_transform(continuation_features)
+        if use_pca and pca_model is not None:
+            continuation_specs_flat = pca_model.inverse_transform(continuation_features)
+        else:
+            continuation_specs_flat = continuation_features
+
+        # Reshape to (n_continuation, n_mels, time_steps)
         continuation_specs = continuation_specs_flat.reshape(n_continuation, 80, 6)
 
         # Convert to MIDI

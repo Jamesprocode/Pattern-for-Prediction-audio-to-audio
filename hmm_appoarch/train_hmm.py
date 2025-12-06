@@ -1,5 +1,5 @@
 """
-Train Gaussian HMM on PCA-reduced spectrogram features.
+Train Gaussian HMM on spectrogram features (with or without PCA).
 The HMM learns transition probabilities and emission distributions.
 """
 
@@ -17,18 +17,41 @@ def main():
     print("HMM Training on Spectrogram Features")
     print("=" * 70)
 
-    # Load PCA-reduced training features
-    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data")
+    # Load training features
+    data_dir = Path("/Users/jameswang/workspace/Pattern for Prediction audio to audio/hmm_appoarch/spectrogram_data_no_pca")
 
     print("\nLoading training data...")
-    train_features = np.load(data_dir / "train_features.npy")  # Shape: (12848, 20)
+    train_features = np.load(data_dir / "train_features.npy")
     train_names = pickle.load(open(data_dir / "train_names.pkl", 'rb'))
-    pca_model = pickle.load(open(data_dir / "pca_model.pkl", 'rb'))
 
     print(f"Train features shape: {train_features.shape}")
     print(f"  Observations: {train_features.shape[0]}")
     print(f"  Feature dimension: {train_features.shape[1]}")
     print(f"  Unique files: {len(set(train_names))}")
+
+    # Check if PCA model exists
+    pca_model = None
+    use_pca = False
+    pca_file = data_dir / "pca_model.pkl"
+    if pca_file.exists():
+        pca_model = pickle.load(open(pca_file, 'rb'))
+        use_pca = True
+        print(f"\nPCA model found - using {train_features.shape[1]}D PCA-reduced features")
+    else:
+        print(f"\nNo PCA model - using {train_features.shape[1]}D raw spectrogram features")
+
+    # Load stats to understand the data better
+    stats_file = data_dir / "feature_stats.json"
+    if stats_file.exists():
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+            print(f"\nDataset Information:")
+            print(f"  Target time steps: {stats.get('target_time_steps', 'unknown')}")
+            print(f"  Number of mel bins: {stats.get('n_mels', 'unknown')}")
+            if stats.get('use_pca'):
+                print(f"  PCA components: {stats.get('n_pca_components', 'unknown')}")
+            if stats.get('variance_explained'):
+                print(f"  PCA variance explained: {stats['variance_explained']:.2%}")
 
     # Initialize Gaussian HMM
     print("\n" + "=" * 70)
@@ -82,7 +105,8 @@ def main():
             'model': model,
             'n_hidden_states': n_hidden_states,
             'n_features': train_features.shape[1],
-            'pca_model': pca_model
+            'pca_model': pca_model,
+            'use_pca': use_pca
         }, f)
 
     print(f"✓ Model saved to: {model_path}")
@@ -101,19 +125,29 @@ def main():
     print(f"  State sequence (first 20): {states[:20]}")
     print(f"  Unique states visited: {len(np.unique(states))}")
 
-    # Convert back to spectrogram space using PCA inverse
-    print(f"\nConverting generated features back to spectrogram space...")
-    generated_specs = pca_model.inverse_transform(generated_features)
-    print(f"  Generated spectrograms shape: {generated_specs.shape}")
-    print(f"  (Can be reshaped to (100, 80, 10) for audio synthesis)")
+    # Convert back to spectrogram space if PCA is used
+    if use_pca and pca_model is not None:
+        print(f"\nConverting generated features back to spectrogram space using PCA...")
+        generated_specs = pca_model.inverse_transform(generated_features)
+        print(f"  Generated spectrograms shape: {generated_specs.shape}")
+        print(f"  (Can be reshaped to (100, 80, 6) for audio synthesis)")
+        generated_specs_shape_info = list(generated_specs.shape)
+    else:
+        print(f"\nUsing raw spectrogram features (no PCA inverse needed)")
+        print(f"  Generated spectrograms shape: {generated_features.shape}")
+        # Raw features are already 480D (80 mels × 6 frames)
+        if generated_features.shape[1] == 480:
+            print(f"  (Can be reshaped to (100, 80, 6) for audio synthesis)")
+        generated_specs_shape_info = list(generated_features.shape)
 
     # Save generation test results
     results = {
         'n_generated': n_generate,
         'generated_features_shape': list(generated_features.shape),
-        'generated_specs_shape': list(generated_specs.shape),
+        'generated_specs_shape': generated_specs_shape_info,
         'states_visited': len(np.unique(states)),
-        'log_likelihood': float(model.score(train_features))
+        'log_likelihood': float(model.score(train_features)),
+        'use_pca': use_pca
     }
 
     results_file = data_dir / "hmm_generation_test.json"
@@ -126,7 +160,10 @@ def main():
     print("=" * 70)
     print(f"\nNext steps:")
     print(f"  1. Use the trained HMM to generate predictions")
-    print(f"  2. Convert predictions to audio via PCA inverse + MIDI synthesis")
+    if use_pca:
+        print(f"  2. Convert predictions to audio via PCA inverse + MIDI synthesis")
+    else:
+        print(f"  2. Convert predictions to audio via direct spectrogram reshape + MIDI synthesis")
     print(f"  3. Evaluate against test set continuation ground truth")
 
 
